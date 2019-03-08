@@ -11,7 +11,7 @@ train=pd.read_csv("CheXpert-v1.0-small/train.csv", dtype = str)
 valid=pd.read_csv("CheXpert-v1.0-small/valid.csv", dtype = str)
 
 
-#convert the unknown to zero
+#convert the unknowns to zero
 train['Pleural Effusion'].loc[train['Pleural Effusion'].isna()] = '0.0'
 train['Pleural Effusion'].loc[train['Pleural Effusion'] == '-1.0'] = '0.0'
 
@@ -75,9 +75,9 @@ validation_generator = test_datagen.flow_from_dataframe(dataframe=valid,
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu',
                         input_shape=(150, 150, 1)))
-model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Dropout(0.25))
 model.add(layers.Conv2D(128, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(128, (3, 3), activation='relu'))
@@ -100,7 +100,7 @@ for data_batch, labels_batch in train_generator:
 
 history = model.fit_generator(
       train_generator,
-      steps_per_epoch=25,
+      steps_per_epoch=50,
       epochs=10,
       validation_data=validation_generator,
-      validation_steps=25)
+      validation_steps=50)
