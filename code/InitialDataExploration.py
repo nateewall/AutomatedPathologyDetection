@@ -15,11 +15,14 @@ valid=pd.read_csv("CheXpert-v1.0-small/valid.csv", dtype = str)
 train['Pleural Effusion'].loc[train['Pleural Effusion'].isna()] = '0.0'
 train['Pleural Effusion'].loc[train['Pleural Effusion'] == '-1.0'] = '0.0'
 
-#pull a subset out for testing
-train_subset = train.sample(10000)
+print(train.head())
+print(train.info())
+
+# #pull a subset out for testing
+# train_subset = train.sample(10000)
 
 #show what my distribution looks like
-print(train_subset['Pleural Effusion'].value_counts())
+print(train['Pleural Effusion'].value_counts())
 
 #declare the datagen options
 train_datagen = ImageDataGenerator(rescale=1./255,
@@ -33,15 +36,14 @@ train_datagen = ImageDataGenerator(rescale=1./255,
                                    )
 
 #generate training dataset
-train_generator = train_datagen.flow_from_dataframe(dataframe=train_subset,
+train_generator = train_datagen.flow_from_dataframe(dataframe=train,
                                                     directory=None,
                                                     x_col="Path",
                                                     y_col="Pleural Effusion",
                                                     class_mode="binary",
                                                     color_mode="grayscale",
                                                     target_size=(150,150),
-                                                    batch_size=20,
-                                                    validate_filenames= True)
+                                                    batch_size=20)
 
 #convert the unknown to zero
 valid['Pleural Effusion'].loc[valid['Pleural Effusion'].isna()] = '0.0'
@@ -67,8 +69,7 @@ validation_generator = test_datagen.flow_from_dataframe(dataframe=valid,
                                                     class_mode="binary",
                                                     color_mode="grayscale",
                                                     target_size=(150,150),
-                                                    batch_size=20,
-                                                    validate_filenames= True)
+                                                    batch_size=20)
 
 
 
