@@ -18,21 +18,22 @@ train['Pleural Effusion'].loc[train['Pleural Effusion'] == '-1.0'] = '0.0'
 print(train.head())
 print(train.info())
 
-# #pull a subset out for testing
-# train_subset = train.sample(10000)
+#pull a subset out for testing
+# subset = train.sample(10000)
+
 
 #show what my distribution looks like
 print(train['Pleural Effusion'].value_counts())
 
 #declare the datagen options
 train_datagen = ImageDataGenerator(rescale=1./255,
-                                   zca_epsilon=1e-06,
-                                   # randomly shift images horizontally (fraction of total width)
-                                   width_shift_range=0.1,
-                                   # randomly shift images vertically (fraction of total height)
-                                   height_shift_range=0.1,
-                                   horizontal_flip=True,  # randomly flip images
-                                   vertical_flip=False  # randomly flip images
+                                   rotation_range = 40,
+                                   width_shift_range = 0.2,
+                                   height_shift_range = 0.2,
+                                   shear_range = 0.2,
+                                   zoom_range=0.2,
+                                   horizontal_flip=True,
+                                   fill_mode= 'nearest'
                                    )
 
 #generate training dataset
@@ -42,8 +43,9 @@ train_generator = train_datagen.flow_from_dataframe(dataframe=train,
                                                     y_col="Pleural Effusion",
                                                     class_mode="binary",
                                                     color_mode="grayscale",
-                                                    target_size=(150,150),
-                                                    batch_size=20)
+                                                    target_size=(320,320),
+                                                    batch_size=32)
+
 
 #convert the unknown to zero
 valid['Pleural Effusion'].loc[valid['Pleural Effusion'].isna()] = '0.0'
@@ -52,14 +54,14 @@ valid['Pleural Effusion'].loc[valid['Pleural Effusion'] == '-1.0'] = '0.0'
 print(valid['Pleural Effusion'].value_counts())
 
 test_datagen = ImageDataGenerator(rescale=1./255,
-                                   zca_epsilon=1e-06,
-                                   # randomly shift images horizontally (fraction of total width)
-                                   width_shift_range=0.1,
-                                   # randomly shift images vertically (fraction of total height)
-                                   height_shift_range=0.1,
-                                   horizontal_flip=True,  # randomly flip images
-                                   vertical_flip=False  # randomly flip images
-                                   )
+                                  rotation_range = 40,
+                                  width_shift_range = 0.2,
+                                  height_shift_range = 0.2,
+                                  shear_range = 0.2,
+                                  zoom_range=0.2,
+                                  horizontal_flip=True,
+                                  fill_mode= 'nearest'
+                                 )
 
 
 validation_generator = test_datagen.flow_from_dataframe(dataframe=valid,
@@ -68,14 +70,14 @@ validation_generator = test_datagen.flow_from_dataframe(dataframe=valid,
                                                     y_col="Pleural Effusion",
                                                     class_mode="binary",
                                                     color_mode="grayscale",
-                                                    target_size=(150,150),
-                                                    batch_size=20)
+                                                    target_size=(320,320),
+                                                    batch_size=32)
 
 
 
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu',
-                        input_shape=(150, 150, 1)))
+                        input_shape=(300,300, 1)))
 model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Dropout(0.25))
@@ -84,6 +86,7 @@ model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(128, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Flatten())
+model.add(layers.Dropout(0.5))
 model.add(layers.Dense(512, activation='relu'))
 model.add(layers.Dense(1, activation='sigmoid'))
 
@@ -101,7 +104,7 @@ for data_batch, labels_batch in train_generator:
 
 history = model.fit_generator(
       train_generator,
-      steps_per_epoch=50,
-      epochs=10,
+      steps_per_epoch=10,
+      epochs=5,
       validation_data=validation_generator,
-      validation_steps=50)
+      validation_steps=10)
