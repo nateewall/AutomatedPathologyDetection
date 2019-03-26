@@ -9,13 +9,13 @@ from keras.applications import densenet, VGG16
 
 #setting some hyper parameters at the top to play with
 batch_size = 16
-epochs = 3
+epochs = 4
 opt = optimizers.Adam(lr=1e-4)
-steps_per_epoch=1000
+steps_per_epoch=2500
 
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'vgg16_032219.h5'
+model_name = 'vgg16_032519_4Epoch2500Step.h5'
 
 
 #read in the training dataset
