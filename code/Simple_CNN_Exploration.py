@@ -4,18 +4,25 @@ from keras_preprocessing.image import ImageDataGenerator
 from keras import layers
 from keras import models
 from keras import optimizers
-from keras.applications import densenet, VGG16
+from keras.applications.densenet import DenseNet121
+from keras.callbacks import ModelCheckpoint
 
 
 #setting some hyper parameters at the top to play with
-batch_size = 16
-epochs = 4
+batch_size = 20
+epochs = 3
 opt = optimizers.Adam(lr=1e-4)
-steps_per_epoch=2500
+steps_per_epoch = 10000
 
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'vgg16_032519_4Epoch2500Step.h5'
+model_name = 'dense121_05919_3Epoch16Step.h5'
+
+weight_path="{}_weights.best.hdf5".format('dense121_3Epoch16Step')
+
+checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1,
+                             save_best_only=True, mode='min', save_weights_only = True)
+
 
 
 #read in the training dataset
@@ -64,38 +71,18 @@ valid_generator = valid_datagen.flow_from_dataframe(dataframe=valid,
 # print(dir(train_generator))
 print(valid_generator.image_shape)
 
-conv_base = VGG16(weights='imagenet',
-                  include_top=False,
-                  input_shape=train_generator.image_shape)
+conv_base = DenseNet121(weights='imagenet',
+                        include_top=False,
+                        input_shape=train_generator.image_shape,
+                        pooling=max)
 
 conv_base.trainable = True
 
-set_trainable = False
 for layer in conv_base.layers:
-    if layer.name == 'block2_conv1':
-        set_trainable = True
-    if set_trainable:
-        layer.trainable = True
-    else:
-        layer.trainable = False
+    layer.trainable = True
 
-print(conv_base.summary())
 
-# ####BUILDING SMALL NETWORK FROM SCRATCH####
-# # model = models.Sequential()
-# # model.add(layers.Conv2D(32, (3, 3), activation='relu',
-# #         padding = 'same', input_shape=train_generator.image_shape))
-# # model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-# # model.add(layers.MaxPooling2D((2, 2)))
-# # model.add(layers.Dropout(0.25))
-# # model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-# # model.add(layers.MaxPooling2D((2, 2)))
-# # model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-# # model.add(layers.MaxPooling2D((2, 2)))
-# # model.add(layers.Dropout(0.25))
-# # model.add(layers.Flatten())
-# # model.add(layers.Dense(512, activation='relu'))
-# # model.add(layers.Dense(1, activation='sigmoid'))
+# print(conv_base.summary())
 
 ####USING PRE_TRAINED MODELS RETRAINING THE TOP LAYERS
 model = models.Sequential()
@@ -114,10 +101,11 @@ for data_batch, labels_batch in train_generator:
 
 history = model.fit_generator(
     train_generator,
-    steps_per_epoch= steps_per_epoch,
     epochs=epochs,
+    steps_per_epoch=steps_per_epoch,
     validation_data=valid_generator,
-    validation_steps=20)
+    validation_steps=20,
+    callbacks=[checkpoint])
 
 
 
