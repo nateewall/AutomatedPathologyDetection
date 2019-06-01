@@ -1,49 +1,23 @@
 import pandas as pd
 import os
+import keras
+import keras_applications
+keras_applications.set_keras_submodules(
+    backend=keras.backend,
+    layers=keras.layers,
+    models=keras.models,
+    utils=keras.utils
+)
 from keras_preprocessing.image import ImageDataGenerator
 from keras import layers
 from keras import models
 from keras import optimizers
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-#-----------------------------INITIATE_SOME VARS-------------------------------------#
-
-TRAIN = 'CheXpert-v1.0-small/train.csv'
-VALID = 'CheXpert-v1.0-small/valid.csv'
-
-TARGET_SIZE = (320,320)
-BATCH_SIZE = 16
-CONV_BASE = 'DenseNet121'
-EPOCHS = 3
-OPT = optimizers.Adam(lr=1e-4)
-WEIGHTS = 'imagenet'
-TRAINABLE = True
-
-if CONV_BASE == 'VGG16':
-    from keras.applications.vgg16 import VGG16 as BASE
-elif CONV_BASE == 'ResNet152':
-    from keras.applications.resnet import ResNet152 as BASE
-elif CONV_BASE == 'DenseNet121':
-    from keras.applications.densenet import DenseNet121 as BASE
-elif CONV_BASE == 'NASNetLarge':
-    from keras.applications.nasnet import NASNetLarge as BASE
-else:
-    raise ValueError('Unknown model: {}'.format(CONV_BASE))
-
-
-#-----------------------------SETUP CHECKPOINTS AND MODEL STORAGE-------------------------------------#
-save_dir = os.path.join(os.getcwd(), 'saved_models')
-
-model_name = "{m}_{b}_{e}_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
-
-weight_path="{m}_{b}_{e}_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
-
-checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1,
-                             save_best_only=True, mode='min', save_weights_only = True)
-
-reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=0.0001)
 
 # -----------------------------LOAD IN OUR DATA---------------------------------- #
+TRAIN = 'CheXpert-v1.0-small/train.csv'
+VALID = 'CheXpert-v1.0-small/valid.csv'
 
 # read in the training dataset
 train = pd.read_csv(TRAIN, dtype=str)
@@ -57,28 +31,63 @@ num_samples = len(train)
 
 #same for validation set even though there should be no issue here with missing data
 valid['Pleural Effusion'].loc[valid['Pleural Effusion'].isna()] = '0.0'
-num_valid = len(train)
+num_valid = len(valid)
+
+#-----------------------------INITIATE_SOME VARS-------------------------------------#
+
+
+TARGET_SIZE = (224, 224)
+BATCH_SIZE = 8
+CONV_BASE = 'DenseNet121'
+EPOCHS = 3
+OPT = optimizers.Adam(0.00001)
+WEIGHTS = 'DenseNet121_24_6_weights_lr_reduce_from32_16.hdf5'
+TRAINABLE = True
+
+STEPS_PER_EPOCH = (num_samples/BATCH_SIZE) - 1
+
+if CONV_BASE == 'VGG16':
+    from keras.applications.vgg16 import VGG16 as BASE
+elif CONV_BASE == 'ResNet152':
+    from keras_applications.resnet import ResNet152 as BASE
+elif CONV_BASE == 'DenseNet121':
+    from keras.applications.densenet import DenseNet121 as BASE
+elif CONV_BASE == 'NASNetLarge':
+    from keras.applications.nasnet import NASNetLarge as BASE
+else:
+    raise ValueError('Unknown model: {}'.format(CONV_BASE))
+
+
+
+
+#-----------------------------SETUP CHECKPOINTS AND MODEL STORAGE-------------------------------------#
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+
+model_name = "{m}_{b}_{e}_model_lr_reduce_from32_16_8.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+
+weight_path="{m}_{b}_{e}_weights_test_lr_reduce_from32_16_8.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+
+checkpoint = ModelCheckpoint(weight_path, monitor='accuracy', verbose=1,
+                             save_best_only=True, mode='max', save_weights_only = True)
+
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001, cooldown = 1)
+
+checkitout = [checkpoint, reduce_lr]
+
 
 # -----------------------------DATA PREPROCESSING---------------------------------- #
 #declare the datagen options
-train_datagen = ImageDataGenerator(rescale=1./255,
-                                   rotation_range=20,
-                                   zoom_range=0.05,
-                                   width_shift_range=0.05,
-                                   height_shift_range=0.05,
-                                   shear_range=0.05,
-                                   horizontal_flip=True,
-                                   fill_mode="nearest")
+train_datagen = ImageDataGenerator(rescale=1./255)
 
 # set up the test data set
-valid_datagen = ImageDataGenerator(rescale=1. / 255)
+valid_datagen = ImageDataGenerator(rescale=1./255)
 
 #generate training dataset
 train_generator = train_datagen.flow_from_dataframe(dataframe=train,
                                                     directory=None,
                                                     x_col="Path",
-                                                    y_col="Pleural Effusion",
-                                                    class_mode="binary",
+                                                    y_col="label",
+                                                    class_mode="categorical",
                                                     color_mode="rgb",
                                                     target_size=TARGET_SIZE,
                                                     batch_size=BATCH_SIZE)
@@ -87,7 +96,7 @@ train_generator = train_datagen.flow_from_dataframe(dataframe=train,
 valid_generator = valid_datagen.flow_from_dataframe(dataframe=valid,
                                                     directory=None,
                                                     x_col="Path",
-                                                    y_col="Pleural Effusion",
+                                                    y_col="label",
                                                     class_mode="binary",
                                                     color_mode="rgb",
                                                     target_size=TARGET_SIZE,
@@ -95,36 +104,42 @@ valid_generator = valid_datagen.flow_from_dataframe(dataframe=valid,
 
 # -----------------------------COMPILE THE MODEL---------------------------------- #
 
-conv_base = BASE(weights=WEIGHTS,
-                        include_top=False,
-                        input_shape=train_generator.image_shape,
-                        pooling=max)
+conv_base = BASE(include_top=True,
+                input_shape=train_generator.image_shape,
+                pooling=max)
 
-conv_base.trainable = TRAINABLE
+conv_base.layers.pop()
+# print(conv_base.summary())
+
+conv_base.trainable = True
+for layer in conv_base.layers:
+    layer.trainable = True
 
 model = models.Sequential()
 model.add(conv_base)
-model.add(layers.Flatten())
-model.add(layers.Dense(256, activation='relu'))
 model.add(layers.Dense(1, activation='sigmoid'))
+
+if WEIGHTS:
+    model.load_weights(WEIGHTS)
 
 model.compile(loss='binary_crossentropy', optimizer= OPT, metrics=['accuracy'])
 print(model.summary())
-
 
 # -----------------------------ADD SOME CHECKPOINTS---------------------------------- #
 
 history = model.fit_generator(
     train_generator,
     epochs=EPOCHS,
-    steps_per_epoch= (num_samples/BATCH_SIZE),
+    steps_per_epoch= STEPS_PER_EPOCH,
     validation_data=valid_generator,
-    validation_steps= (num_valid/BATCH_SIZE),
-    callbacks=[checkpoint, reduce_lr])
+    validation_steps= num_valid,
+    callbacks=checkitout)
 
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
+
 model_path = os.path.join(save_dir, model_name)
+print(model_path)
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)

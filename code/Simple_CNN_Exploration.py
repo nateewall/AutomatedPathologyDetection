@@ -115,7 +115,6 @@ history = model.fit_generator(
     callbacks=[checkpoint])
 
 
-
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 model_path = os.path.join(save_dir, model_name)
