@@ -39,19 +39,18 @@ print(valid['label'].value_counts())
 # -------------------------------------------------------------------------------- #
 
 # -------------------------Process for training Data---------------------------- #
-BATCH_SIZE = 16
+BATCH_SIZE = 24
 CONV_BASE = 'DenseNet121'
-EPOCHS = 3
+EPOCHS = 9
 # WEIGHTS = 'DenseNet121_24_6_weights_lr_reduce_from32_16.hdf5'
 
 
 train_generator = train_flow(train, (320,320), BATCH_SIZE)
 valid_generator = test_flow(valid, (320,320))
 
-STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
-# STEPS_PER_EPOCH = 10
+# STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
+STEPS_PER_EPOCH = 3200
 VALID_STEPS = 1
-
 
 print('-----------------------------------------')
 print('Batched training shapes')
@@ -77,7 +76,7 @@ def auroc(y_true, y_pred):
 
 model = compile_model(loss = "binary_crossentropy",
                       opt = optimizers.Adam(lr=0.0001, amsgrad = True),
-                      metrics = ["accuracy", auroc],
+                      metrics = ["accuracy"],
                       conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)
 
@@ -103,7 +102,7 @@ roc = roc_callback(validation_data=valid_generator)
 
 train_history = train_history()
 
-checkitout = [checkpoint, reduce_lr, roc, train_history]
+checkitout = [checkpoint, reduce_lr, roc]
 
 
 model.fit_generator(
@@ -135,20 +134,19 @@ print('AUC: %s' % str(round(roc_val, 4)))
 print('')
 print('--------------------------')
 
-n=20
-auroc_hist = np.asarray(train_history.auroc).ravel()
-top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
-print('--------------------------')
-print('')
-print('Average Top Batch AUROC: %s' % str(round(np.mean(top_auroc), 4)))
-print('')
-print('--------------------------')
-print('--------------------------')
-print('')
-print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
-print('')
-print('--------------------------')
-
+# n=20
+# auroc_hist = np.asarray(train_history.auroc).ravel()
+# top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
+# print('--------------------------')
+# print('')
+# print('Average Top Batch AUROC: %s' % str(round(np.mean(top_auroc), 4)))
+# print('')
+# print('--------------------------')
+# print('--------------------------')
+# print('')
+# print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
+# print('')
+# print('--------------------------')
 
 # auroc_hist = train_history.auroc[np.argsort(train_history.auroc)[-n:]]
 # print(auroc_hist)

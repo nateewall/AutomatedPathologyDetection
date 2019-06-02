@@ -143,10 +143,6 @@ class roc_callback(Callback):
             pass
         print('--------------------------')
         print('')
-        print('Average Precision: %s' % str(round(pr_val,4)))
-        print('')
-        print('--------------------------')
-        print('')
         print('AUC: %s' % str(round(roc_val,4)))
         print('')
         print('--------------------------')
