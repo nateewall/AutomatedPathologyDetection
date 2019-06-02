@@ -30,6 +30,8 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
                                                         y_col=y,
                                                         class_mode="binary",
                                                         color_mode="grayscale",
+                                                        seed=42,
+                                                        shuffle=True,
                                                         target_size=target_size,
                                                         batch_size=batch_size)
 
@@ -127,6 +129,9 @@ class roc_callback(Callback):
 
 
     def on_train_begin(self, logs={}):
+        self.losses = []
+        self.acc = []
+        self.auroc = []
         return
 
     def on_train_end(self, logs={}):
@@ -146,6 +151,9 @@ class roc_callback(Callback):
         print('AUC: %s' % str(round(roc_val,4)))
         print('')
         print('--------------------------')
+        self.losses.append(logs.get('loss'))
+        self.acc.append(logs.get('acc'))
+        self.auroc.append(logs.get('auroc'))
         return
 
     def on_batch_begin(self, batch, logs={}):
@@ -154,14 +162,3 @@ class roc_callback(Callback):
     def on_batch_end(self, batch, logs={}):
         return
 
-
-class train_history(Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
-        self.acc = []
-        self.auroc = []
-
-    def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
-        self.acc.append(logs.get('acc'))
-        self.auroc.append(logs.get('auroc'))

@@ -5,11 +5,11 @@ import pandas as pd
 import tensorflow as tf
 
 from keras import optimizers
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback, EarlyStopping
 from keras import backend as K
 
 from sklearn.metrics import roc_auc_score, average_precision_score
-from LearningFunctions import train_flow, test_flow, compile_model, roc_callback, train_history
+from LearningFunctions import train_flow, test_flow, compile_model, roc_callback
 
 # -----------------------------LOAD IN OUR DATA---------------------------------- #
 TRAIN = 'CheXpert-v1.0-small/train.csv'
@@ -41,7 +41,7 @@ print(valid['label'].value_counts())
 # -------------------------Process for training Data---------------------------- #
 BATCH_SIZE = 24
 CONV_BASE = 'DenseNet121'
-EPOCHS = 9
+EPOCHS = 6
 # WEIGHTS = 'DenseNet121_24_6_weights_lr_reduce_from32_16.hdf5'
 
 
@@ -49,7 +49,7 @@ train_generator = train_flow(train, (320,320), BATCH_SIZE)
 valid_generator = test_flow(valid, (320,320))
 
 # STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
-STEPS_PER_EPOCH = 3200
+STEPS_PER_EPOCH = 4800
 VALID_STEPS = 1
 
 print('-----------------------------------------')
@@ -90,22 +90,22 @@ print('-----------------------------------------')
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 
-model_name = "{m}_{b}_{e}_random_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+model_name = "{m}_{b}_{e}_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-weight_path="{m}_{b}_{e}_random_best_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+weight_path="{m}_{b}_{e}_best_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
 checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
-reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=1, min_lr=0.00001)
+
+early_stopping = EarlyStopping(monitor='val_loss', patience=2)
 
 roc = roc_callback(validation_data=valid_generator)
-
-train_history = train_history()
 
 checkitout = [checkpoint, reduce_lr, roc]
 
 
-model.fit_generator(
+history = model.fit_generator(
     train_generator,
     epochs=EPOCHS,
     steps_per_epoch= STEPS_PER_EPOCH,
@@ -117,7 +117,7 @@ model.fit_generator(
 scoreSeg = model.evaluate_generator(valid_generator, steps=1)
 print('--------------------------')
 print('')
-print("Accuracy = ",scoreSeg[1])
+print("Accuracy (Evaluation Generator)= ",scoreSeg[1])
 print('')
 
 pred = model.predict_generator(valid_generator, steps=1)
@@ -130,26 +130,28 @@ print('Average Precision: %s' % str(round(pr_val, 4)))
 print('')
 print('--------------------------')
 print('')
-print('AUC: %s' % str(round(roc_val, 4)))
+print('Model AUC: %s' % str(round(roc_val, 4)))
 print('')
 print('--------------------------')
 
-# n=20
-# auroc_hist = np.asarray(train_history.auroc).ravel()
-# top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
-# print('--------------------------')
-# print('')
-# print('Average Top Batch AUROC: %s' % str(round(np.mean(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-# print('--------------------------')
-# print('')
-# print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-
-# auroc_hist = train_history.auroc[np.argsort(train_history.auroc)[-n:]]
-# print(auroc_hist)
+n=3
+auroc_hist = np.asarray(train_history.auroc).ravel()
+top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
+print('--------------------------')
+print('')
+print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
+print('')
+print('--------------------------')
+print('--------------------------')
+print('')
+print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
+print('')
+print('--------------------------')
+print('--------------------------')
+print('')
+print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
+print('')
+print('--------------------------')
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
