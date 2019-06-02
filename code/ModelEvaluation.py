@@ -1,5 +1,7 @@
-import pandas as pd
 import os
+
+import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from keras import optimizers
@@ -7,7 +9,7 @@ from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
 from keras import backend as K
 
 from sklearn.metrics import roc_auc_score, average_precision_score
-from LearningFunctions import train_flow, test_flow, compile_model, roc_callback
+from LearningFunctions import train_flow, test_flow, compile_model, roc_callback, train_history
 
 # -----------------------------LOAD IN OUR DATA---------------------------------- #
 TRAIN = 'CheXpert-v1.0-small/train.csv'
@@ -46,8 +48,8 @@ EPOCHS = 3
 train_generator = train_flow(train, (320,320), BATCH_SIZE)
 valid_generator = test_flow(valid, (320,320))
 
-# STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
-STEPS_PER_EPOCH = 50
+STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
+# STEPS_PER_EPOCH = 10
 VALID_STEPS = 1
 
 
@@ -66,10 +68,15 @@ for data_batch, labels_batch in valid_generator:
 print('-----------------------------------------')
 
 def auroc(y_true, y_pred):
-    return tf.py_func(roc_auc_score, (y_true, y_pred), tf.double)
+    try:
+        auroc = tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
+    except ValueError:
+        pass
+
+    return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(),
+                      opt = optimizers.Adam(lr=0.0001, amsgrad = True),
                       metrics = ["accuracy", auroc],
                       conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)
@@ -84,18 +91,19 @@ print('-----------------------------------------')
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 
-model_name = "{m}_{b}_{e}_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+model_name = "{m}_{b}_{e}_random_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-weight_path="{m}_{b}_{e}_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+weight_path="{m}_{b}_{e}_random_best_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1,
-                             save_best_only=True, mode='max', save_weights_only = True)
+checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
-reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.1, patience=1, min_lr=0.00001, cooldown = 1)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001)
 
 roc = roc_callback(validation_data=valid_generator)
 
-checkitout = [checkpoint, reduce_lr, roc]
+train_history = train_history()
+
+checkitout = [checkpoint, reduce_lr, roc, train_history]
 
 
 model.fit_generator(
@@ -126,6 +134,24 @@ print('')
 print('AUC: %s' % str(round(roc_val, 4)))
 print('')
 print('--------------------------')
+
+n=20
+auroc_hist = np.asarray(train_history.auroc).ravel()
+top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
+print('--------------------------')
+print('')
+print('Average Top Batch AUROC: %s' % str(round(np.mean(top_auroc), 4)))
+print('')
+print('--------------------------')
+print('--------------------------')
+print('')
+print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
+print('')
+print('--------------------------')
+
+
+# auroc_hist = train_history.auroc[np.argsort(train_history.auroc)[-n:]]
+# print(auroc_hist)
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)

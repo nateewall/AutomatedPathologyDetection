@@ -137,8 +137,10 @@ class roc_callback(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         y_pred_val = self.model.predict_generator(self.x_val, steps=1)
-        pr_val = average_precision_score(self.y_val, y_pred_val)
-        roc_val = roc_auc_score(self.y_val, y_pred_val)
+        try:
+            roc_val = roc_auc_score(self.y_val, y_pred_val)
+        except ValueError:
+            pass
         print('--------------------------')
         print('')
         print('Average Precision: %s' % str(round(pr_val,4)))
@@ -155,3 +157,15 @@ class roc_callback(Callback):
 
     def on_batch_end(self, batch, logs={}):
         return
+
+
+class train_history(Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
+        self.acc = []
+        self.auroc = []
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+        self.acc.append(logs.get('acc'))
+        self.auroc.append(logs.get('auroc'))
