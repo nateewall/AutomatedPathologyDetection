@@ -75,7 +75,7 @@ def auroc(y_true, y_pred):
     return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.0001, amsgrad = True),
+                      opt = optimizers.Adam(lr=0.0001),
                       metrics = ["accuracy"],
                       conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)

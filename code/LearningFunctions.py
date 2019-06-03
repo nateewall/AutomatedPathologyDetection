@@ -11,16 +11,7 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
 
     #declare the datagen options
     train_datagen = ImageDataGenerator(rescale=1./255,
-                                       samplewise_center=True,
-                                       samplewise_std_normalization=True,
-                                       horizontal_flip=True,
-                                       vertical_flip=False,
-                                       height_shift_range=0.05,
-                                       width_shift_range=0.1,
-                                       rotation_range=5,
-                                       shear_range=0.1,
-                                       fill_mode='reflect',
-                                       zoom_range=0.15
+                                       horizontal_flip=True
                                        )
 
     #generate training dataset
