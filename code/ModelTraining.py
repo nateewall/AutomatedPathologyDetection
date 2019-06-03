@@ -9,7 +9,7 @@ from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback, 
 from keras import backend as K
 
 from sklearn.metrics import roc_auc_score, average_precision_score
-from LearningFunctions import train_flow, test_flow, compile_model, roc_callback
+from LearningFunctions import train_flow, test_flow, compile_model
 
 # -----------------------------LOAD IN OUR DATA---------------------------------- #
 TRAIN = 'CheXpert-v1.0-small/train.csv'
@@ -25,6 +25,7 @@ label = {'0.0': '0', '1.0' : '1', '-1.0' : '1'}
 
 #convert the missing data to zero as nothing means no mention of the effect
 train['Pleural Effusion'].loc[train['Pleural Effusion'].isna()] = '0.0'
+train = train[train['Pleural Effusion'] != '-1.0']
 train['label'] = train['Pleural Effusion'].map(label)
 num_samples = len(train)
 
@@ -39,10 +40,10 @@ print(valid['label'].value_counts())
 # -------------------------------------------------------------------------------- #
 
 # -------------------------Process for training Data---------------------------- #
-BATCH_SIZE = 24
+BATCH_SIZE = 16
 CONV_BASE = 'DenseNet121'
-EPOCHS = 6
-# WEIGHTS = 'DenseNet121_24_6_weights_lr_reduce_from32_16.hdf5'
+EPOCHS = 9
+WEIGHTS = 'DenseNet121_24_6_best_weights.hdf5'
 
 
 train_generator = train_flow(train, (320,320), BATCH_SIZE)
@@ -66,16 +67,16 @@ for data_batch, labels_batch in valid_generator:
     break
 print('-----------------------------------------')
 
-def auroc(y_true, y_pred):
-    try:
-        auroc = tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
-    except ValueError:
-        pass
-
-    return auroc
+# def auroc(y_true, y_pred):
+#     try:
+#         auroc = tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
+#     except ValueError:
+#         pass
+#
+#     return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.0001),
+                      opt = optimizers.Adam(lr=0.1),
                       metrics = ["accuracy"],
                       conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)
@@ -90,19 +91,19 @@ print('-----------------------------------------')
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 
-model_name = "{m}_{b}_{e}_model.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+model_name = "{m}_{b}_{e}_model_320x320.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-weight_path="{m}_{b}_{e}_best_weights.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+weight_path="{m}_{b}_{e}_best_weights_320x320.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
 checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
-reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=1, min_lr=0.00001)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001)
 
-early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+# early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+#
+# roc = roc_callback(validation_data=valid_generator)
 
-roc = roc_callback(validation_data=valid_generator)
-
-checkitout = [checkpoint, reduce_lr, roc]
+checkitout = [checkpoint, reduce_lr]
 
 
 history = model.fit_generator(
@@ -120,38 +121,38 @@ print('')
 print("Accuracy (Evaluation Generator)= ",scoreSeg[1])
 print('')
 
-pred = model.predict_generator(valid_generator, steps=1)
-pr_val = average_precision_score(valid_generator.labels, pred)
-roc_val = roc_auc_score(valid_generator.labels, pred)
+# pred = model.predict_generator(valid_generator, steps=1)
+# pr_val = average_precision_score(valid_generator.labels, pred)
+# roc_val = roc_auc_score(valid_generator.labels, pred)
+#
+# print('--------------------------')
+# print('')
+# print('Average Precision: %s' % str(round(pr_val, 4)))
+# print('')
+# print('--------------------------')
+# print('')
+# print('Model AUC: %s' % str(round(roc_val, 4)))
+# print('')
+# print('--------------------------')
 
-print('--------------------------')
-print('')
-print('Average Precision: %s' % str(round(pr_val, 4)))
-print('')
-print('--------------------------')
-print('')
-print('Model AUC: %s' % str(round(roc_val, 4)))
-print('')
-print('--------------------------')
-
-n=3
-auroc_hist = np.asarray(train_history.auroc).ravel()
-top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
-print('--------------------------')
-print('')
-print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
-print('')
-print('--------------------------')
-print('--------------------------')
-print('')
-print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
-print('')
-print('--------------------------')
-print('--------------------------')
-print('')
-print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
-print('')
-print('--------------------------')
+# n=3
+# auroc_hist = np.asarray(train_history.auroc).ravel()
+# top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
+# print('--------------------------')
+# print('')
+# print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
+# print('')
+# print('--------------------------')
+# print('--------------------------')
+# print('')
+# print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
+# print('')
+# print('--------------------------')
+# print('--------------------------')
+# print('')
+# print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
+# print('')
+# print('--------------------------')
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)

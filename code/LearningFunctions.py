@@ -20,8 +20,7 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
                                                         x_col=x,
                                                         y_col=y,
                                                         class_mode="binary",
-                                                        color_mode="grayscale",
-                                                        seed=42,
+                                                        color_mode="rgb",
                                                         shuffle=True,
                                                         target_size=target_size,
                                                         batch_size=batch_size)
@@ -32,7 +31,7 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
 #
 #     train_datagen = ImageDataGenerator(re)
 
-def test_flow(valid, target_size, batch_size = 234, x = 'Path', y= 'label'):
+def test_flow(valid, target_size, batch_size = 1, x = 'Path', y= 'label'):
 
     #declare the datagen options
     valid_datagen = ImageDataGenerator(rescale=1./255)
@@ -42,7 +41,8 @@ def test_flow(valid, target_size, batch_size = 234, x = 'Path', y= 'label'):
                                                         x_col=x,
                                                         y_col=y,
                                                         class_mode="binary",
-                                                        color_mode="grayscale",
+                                                        color_mode="rgb",
+                                                        shuffle=False,
                                                         target_size=target_size,
                                                         batch_size=batch_size)
 
@@ -67,7 +67,7 @@ def compile_model(loss, opt, metrics, shape , weights = None, conv_base = 'Dense
     if weights:
         conv_base = BASE(include_top=False,
                          input_shape=shape,
-                         pooling='avg')
+                         pooling=max)
 
         # conv_base = BASE(include_top=True)
 
@@ -132,7 +132,8 @@ class roc_callback(Callback):
         return
 
     def on_epoch_end(self, epoch, logs={}):
-        y_pred_val = self.model.predict_generator(self.x_val, steps=1)
+        valid_generator.reset()
+        y_pred_val = self.model.predict_generator(self.x_val, steps=valid_generator.n)
         try:
             roc_val = roc_auc_score(self.y_val, y_pred_val)
         except ValueError:
