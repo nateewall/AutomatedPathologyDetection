@@ -132,8 +132,8 @@ class roc_callback(Callback):
         return
 
     def on_epoch_end(self, epoch, logs={}):
-        valid_generator.reset()
-        y_pred_val = self.model.predict_generator(self.x_val, steps=valid_generator.n)
+        self.x_val.reset()
+        y_pred_val = self.model.predict_generator(self.x_val, steps=self.x_val.n)
         try:
             roc_val = roc_auc_score(self.y_val, y_pred_val)
         except ValueError:

@@ -9,7 +9,7 @@ from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback, 
 from keras import backend as K
 
 from sklearn.metrics import roc_auc_score, average_precision_score
-from LearningFunctions import train_flow, test_flow, compile_model
+from LearningFunctions import train_flow, test_flow, compile_model, roc_callback
 
 # -----------------------------LOAD IN OUR DATA---------------------------------- #
 TRAIN = 'CheXpert-v1.0-small/train.csv'
@@ -43,7 +43,7 @@ print(valid['label'].value_counts())
 BATCH_SIZE = 16
 CONV_BASE = 'DenseNet121'
 EPOCHS = 9
-WEIGHTS = 'DenseNet121_24_6_best_weights.hdf5'
+WEIGHTS = '{m}_{b}_{e}_best_weights_320x320.hdf5'.format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
 
 train_generator = train_flow(train, (320,320), BATCH_SIZE)
@@ -51,7 +51,7 @@ valid_generator = test_flow(valid, (320,320))
 
 # STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
 STEPS_PER_EPOCH = 4800
-VALID_STEPS = 1
+VALID_STEPS = valid_generator.n
 
 print('-----------------------------------------')
 print('Batched training shapes')
@@ -76,7 +76,8 @@ print('-----------------------------------------')
 #     return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.1),
+                      weights = WEIGHTS,
+                      opt = optimizers.Adam(lr=0.01),
                       metrics = ["accuracy"],
                       conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)
@@ -91,19 +92,17 @@ print('-----------------------------------------')
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 
-model_name = "{m}_{b}_{e}_model_320x320.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+model_name = "{m}_{b}_{e}_model_320x320_v2.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-weight_path="{m}_{b}_{e}_best_weights_320x320.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+weight_path="{m}_{b}_{e}_best_weights_320x320_v2.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
 checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001)
 
-# early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-#
-# roc = roc_callback(validation_data=valid_generator)
+roc = roc_callback(validation_data=valid_generator)
 
-checkitout = [checkpoint, reduce_lr]
+checkitout = [checkpoint, reduce_lr, roc]
 
 
 history = model.fit_generator(
