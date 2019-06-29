@@ -1,3 +1,4 @@
+
 from keras_preprocessing.image import ImageDataGenerator
 from keras import layers
 from keras import models
@@ -6,11 +7,10 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 
 # -----------------------------DATA PREPROCESSING---------------------------------- #
 
-def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
+def train_flow(train, target_size, batch_size, x = 'Path', y= 'label', class_mode = "binary"):
 
     #declare the datagen options
-    train_datagen = ImageDataGenerator(rescale=1./255,
-                                       horizontal_flip=True
+    train_datagen = ImageDataGenerator(rescale=1./255
                                        )
 
     #generate training dataset
@@ -18,7 +18,7 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
                                                         directory=None,
                                                         x_col=x,
                                                         y_col=y,
-                                                        class_mode="binary",
+                                                        class_mode=class_mode,
                                                         color_mode="rgb",
                                                         shuffle=True,
                                                         target_size=target_size,
@@ -30,7 +30,7 @@ def train_flow(train, target_size, batch_size, x = 'Path', y= 'label'):
 #
 #     train_datagen = ImageDataGenerator(re)
 
-def test_flow(valid, target_size, batch_size = 1, x = 'Path', y= 'label'):
+def test_flow(valid, target_size, batch_size = 1, x = 'Path', y= 'label', class_mode = "binary"):
 
     #declare the datagen options
     valid_datagen = ImageDataGenerator(rescale=1./255)
@@ -39,7 +39,7 @@ def test_flow(valid, target_size, batch_size = 1, x = 'Path', y= 'label'):
                                                         directory=None,
                                                         x_col=x,
                                                         y_col=y,
-                                                        class_mode="binary",
+                                                        class_mode=class_mode,
                                                         color_mode="rgb",
                                                         shuffle=False,
                                                         target_size=target_size,
@@ -58,12 +58,10 @@ def compile_model(loss, opt, metrics, shape , weights = None, conv_base = 'Dense
         from keras.applications.densenet import DenseNet121 as BASE
     elif conv_base == 'NASNetLarge':
         from keras.applications.nasnet import NASNetLarge as BASE
-    elif conv_base == 'MobileNetV2':
+    elif CONV_BASE == 'MobileNetV2':
         from keras.applications.mobilenet_v2 import MobileNetV2 as BASE
-    elif conv_base == 'Xception':
-        from keras.applications.xception import Xception as BASE
     else:
-        raise ValueError('Unknown model: {}'.format(conv_base))
+        raise ValueError('Unknown model: {}'.format(CONV_BASE))
 
     #load the base layer with everything
 
@@ -86,7 +84,7 @@ def compile_model(loss, opt, metrics, shape , weights = None, conv_base = 'Dense
         model = models.Sequential()
         model.add(conv_base)
         model.add(layers.GlobalAveragePooling2D())
-        model.add(layers.Dense(1, activation='sigmoid'))
+        model.add(layers.Dense(5, activation='sigmoid'))
 
         model.load_weights(weights)
 
@@ -109,7 +107,7 @@ def compile_model(loss, opt, metrics, shape , weights = None, conv_base = 'Dense
         model = models.Sequential()
         model.add(conv_base)
         model.add(layers.GlobalAveragePooling2D())
-        model.add(layers.Dense(1, activation='sigmoid'))
+        model.add(layers.Dense(5, activation='sigmoid'))
 
         model.compile(loss=loss, optimizer=opt, metrics=metrics)
 
@@ -156,3 +154,4 @@ class roc_callback(Callback):
 
     def on_batch_end(self, batch, logs={}):
         return
+

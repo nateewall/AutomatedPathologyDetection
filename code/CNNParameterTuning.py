@@ -37,8 +37,8 @@ num_valid = len(valid)
 
 
 TARGET_SIZE = (224, 224)
-BATCH_SIZE = 8
-CONV_BASE = 'DenseNet121'
+BATCH_SIZE = 16
+CONV_BASE = 'MobileNetV2'
 EPOCHS = 3
 OPT = optimizers.Adam(0.00001)
 WEIGHTS = 'DenseNet121_24_6_weights_lr_reduce_from32_16.hdf5'
@@ -54,6 +54,8 @@ elif CONV_BASE == 'DenseNet121':
     from keras.applications.densenet import DenseNet121 as BASE
 elif CONV_BASE == 'NASNetLarge':
     from keras.applications.nasnet import NASNetLarge as BASE
+elif CONV_BASE == 'MobileNetV2':
+    from keras.applications.mobilenet_v2 import MobileNetV2 as BASE
 else:
     raise ValueError('Unknown model: {}'.format(CONV_BASE))
 

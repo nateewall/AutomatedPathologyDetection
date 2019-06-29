@@ -21,33 +21,49 @@ train = pd.read_csv(TRAIN, dtype=str)
 valid = pd.read_csv(VALID, dtype=str)
 
 #mapping to different labels
-label = {'0.0': '0', '1.0' : '1', '-1.0' : '1'}
+labelMap = {'0.0': 0, '1.0' : 1, '-1.0' : 1}
 
 #convert the missing data to zero as nothing means no mention of the effect
-train['Pleural Effusion'].loc[train['Pleural Effusion'].isna()] = '0.0'
-train = train[train['Pleural Effusion'] != '-1.0']
-train['label'] = train['Pleural Effusion'].map(label)
+labels = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
+for l in labels:
+    train[l].loc[train[l].isna()] = '0.0'
+    train[l] = train[l].map(labelMap)
+    # print(train[l].value_counts())
+
+train['label'] = train[labels].values.tolist()
 num_samples = len(train)
 
-print(train['label'].value_counts())
 
 #same for validation set even though there should be no issue here with missing data
-valid['label'] = valid['Pleural Effusion'].map(label)
-num_valid = len(valid)
+for l in labels:
+    valid[l].loc[valid[l].isna()] = '0.0'
+    valid[l] = valid[l].map(labelMap)
+    # print(valid[l].value_counts())
 
-print(valid['label'].value_counts())
+valid['label'] = valid[labels].values.tolist()
+num_valid = len(valid)
 
 # -------------------------------------------------------------------------------- #
 
 # -------------------------Process for training Data---------------------------- #
 BATCH_SIZE = 16
-CONV_BASE = 'MobileNetV2'
+CONV_BASE = 'DenseNet121'
 EPOCHS = 15
-WEIGHTS = None
+# WEIGHTS = 'imagenet'
+WEIGHTS = 'DenseNet121_16_3_best_weights_320x320_multilabel.hdf5'
 
 
-train_generator = train_flow(train, (320,320), BATCH_SIZE)
-valid_generator = test_flow(valid, (320,320))
+train_generator = train_flow(train = train,
+                             target_size = (320,320),
+                             y = labels,
+                             batch_size = BATCH_SIZE,
+                             class_mode = "other")
+
+valid_generator = test_flow(valid = valid,
+                            target_size = (320,320),
+                            y = labels,
+                            class_mode = "other")
+
 
 # STEPS_PER_EPOCH = int(len(train_generator.labels)/BATCH_SIZE)
 STEPS_PER_EPOCH = 4800
@@ -76,9 +92,10 @@ print('-----------------------------------------')
 #     return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.1),
+                      weights = WEIGHTS,
+                      opt = optimizers.Adam(lr=0.01),
                       metrics = ["accuracy"],
-                      conv_base = CONV_BASE,
+                      conv_base = 'DenseNet121',
                       shape = train_generator.image_shape)
 
 print('-----------------------------------------')
@@ -91,17 +108,17 @@ print('-----------------------------------------')
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 
-model_name = "{m}_{b}_{e}_model_320x320_v2.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+model_name = "{m}_{b}_{e}_model_320x320_multilabel.h5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
-weight_path="{m}_{b}_{e}_best_weights_320x320_v2.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
+weight_path="{m}_{b}_{e}_best_weights_320x320_multilabel.hdf5".format(m=CONV_BASE, b=BATCH_SIZE, e=EPOCHS)
 
 checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=1, min_lr=0.00001)
 
-roc = roc_callback(validation_data=valid_generator)
+# roc = roc_callback(validation_data=valid_generator)
 
-checkitout = [checkpoint, reduce_lr, roc]
+checkitout = [checkpoint, reduce_lr]
 
 
 history = model.fit_generator(
@@ -112,50 +129,50 @@ history = model.fit_generator(
     validation_steps= VALID_STEPS,
     callbacks=checkitout)
 
-#
+
 # scoreSeg = model.evaluate_generator(valid_generator, steps=1)
 # print('--------------------------')
 # print('')
 # print("Accuracy (Evaluation Generator)= ",scoreSeg[1])
 # print('')
 #
-# pred = model.predict_generator(valid_generator, steps=1)
-# pr_val = average_precision_score(valid_generator.labels, pred)
-# roc_val = roc_auc_score(valid_generator.labels, pred)
+# # pred = model.predict_generator(valid_generator, steps=1)
+# # pr_val = average_precision_score(valid_generator.labels, pred)
+# # roc_val = roc_auc_score(valid_generator.labels, pred)
+# #
+# # print('--------------------------')
+# # print('')
+# # print('Average Precision: %s' % str(round(pr_val, 4)))
+# # print('')
+# # print('--------------------------')
+# # print('')
+# # print('Model AUC: %s' % str(round(roc_val, 4)))
+# # print('')
+# # print('--------------------------')
 #
-# print('--------------------------')
-# print('')
-# print('Average Precision: %s' % str(round(pr_val, 4)))
-# print('')
-# print('--------------------------')
-# print('')
-# print('Model AUC: %s' % str(round(roc_val, 4)))
-# print('')
-# print('--------------------------')
+# # n=3
+# # auroc_hist = np.asarray(train_history.auroc).ravel()
+# # top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
+# # print('--------------------------')
+# # print('')
+# # print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
+# # print('')
+# # print('--------------------------')
+# # print('--------------------------')
+# # print('')
+# # print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
+# # print('')
+# # print('--------------------------')
+# # print('--------------------------')
+# # print('')
+# # print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
+# # print('')
+# # print('--------------------------')
 #
-# n=3
-# auroc_hist = np.asarray(train_history.auroc).ravel()
-# top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
-# print('--------------------------')
-# print('')
-# print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-# print('--------------------------')
-# print('')
-# print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-# print('--------------------------')
-# print('')
-# print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-
-if not os.path.isdir(save_dir):
-    os.makedirs(save_dir)
-
-model_path = os.path.join(save_dir, model_name)
-print(model_path)
-model.save(model_path)
-print('Saved trained model at %s ' % model_path)
+# if not os.path.isdir(save_dir):
+#     os.makedirs(save_dir)
+#
+# model_path = os.path.join(save_dir, model_name)
+# print(model_path)
+# model.save(model_path)
+# print('Saved trained model at %s ' % model_path)
