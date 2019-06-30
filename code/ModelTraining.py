@@ -41,8 +41,8 @@ print(valid['label'].value_counts())
 
 # -------------------------Process for training Data---------------------------- #
 BATCH_SIZE = 16
-CONV_BASE = 'MobileNetV2'
-EPOCHS = 15
+CONV_BASE = 'Xception'
+EPOCHS = 9
 WEIGHTS = None
 
 
@@ -76,8 +76,9 @@ print('-----------------------------------------')
 #     return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.1),
+                      opt = optimizers.Adam(lr=0.001),
                       metrics = ["accuracy"],
+                      weights = WEIGHTS,
                       conv_base = CONV_BASE,
                       shape = train_generator.image_shape)
 
@@ -110,47 +111,8 @@ history = model.fit_generator(
     steps_per_epoch= STEPS_PER_EPOCH,
     validation_data=valid_generator,
     validation_steps= VALID_STEPS,
-    callbacks=checkitout)
-
-#
-# scoreSeg = model.evaluate_generator(valid_generator, steps=1)
-# print('--------------------------')
-# print('')
-# print("Accuracy (Evaluation Generator)= ",scoreSeg[1])
-# print('')
-#
-# pred = model.predict_generator(valid_generator, steps=1)
-# pr_val = average_precision_score(valid_generator.labels, pred)
-# roc_val = roc_auc_score(valid_generator.labels, pred)
-#
-# print('--------------------------')
-# print('')
-# print('Average Precision: %s' % str(round(pr_val, 4)))
-# print('')
-# print('--------------------------')
-# print('')
-# print('Model AUC: %s' % str(round(roc_val, 4)))
-# print('')
-# print('--------------------------')
-#
-# n=3
-# auroc_hist = np.asarray(train_history.auroc).ravel()
-# top_auroc = auroc_hist[np.argsort(auroc_hist)[-n:]]
-# print('--------------------------')
-# print('')
-# print('Average AUROC: %s' % str(round(np.mean(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-# print('--------------------------')
-# print('')
-# print('Std Dev AUROC: %s' % str(round(np.std(top_auroc), 4)))
-# print('')
-# print('--------------------------')
-# print('--------------------------')
-# print('')
-# print('Max AUROC: %s' % str(round(np.max(top_auroc), 4)))
-# print('')
-# print('--------------------------')
+    callbacks=checkitout,
+    verbose=1)
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
@@ -159,3 +121,17 @@ model_path = os.path.join(save_dir, model_name)
 print(model_path)
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)
+
+pred = model.predict_generator(valid_generator, steps=int(len(valid_generator.labels)))
+pr_val = average_precision_score(valid_generator.labels, pred)
+roc_val = roc_auc_score(valid_generator.labels, pred)
+
+print('--------------------------')
+print('')
+print('Average Precision: %s' % str(round(pr_val, 4)))
+print('')
+print('--------------------------')
+print('')
+print('Model AUC: %s' % str(round(roc_val, 4)))
+print('')
+print('--------------------------')
