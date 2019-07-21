@@ -40,10 +40,12 @@ print(valid['label'].value_counts())
 # -------------------------------------------------------------------------------- #
 
 # -------------------------Process for training Data---------------------------- #
+#set some model hyperparameters
 BATCH_SIZE = 16
-CONV_BASE = 'Xception'
-EPOCHS = 9
+CONV_BASE = 'NASNetMobile'
+EPOCHS = 15
 WEIGHTS = None
+OPT_START = optimizers.Adam(lr=0.01)
 
 
 train_generator = train_flow(train, (320,320), BATCH_SIZE)
@@ -67,16 +69,16 @@ for data_batch, labels_batch in valid_generator:
     break
 print('-----------------------------------------')
 
-# def auroc(y_true, y_pred):
-#     try:
-#         auroc = tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
-#     except ValueError:
-#         pass
-#
-#     return auroc
+def auroc(y_true, y_pred):
+    try:
+        auroc = tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
+    except ValueError:
+        pass
+
+    return auroc
 
 model = compile_model(loss = "binary_crossentropy",
-                      opt = optimizers.Adam(lr=0.001),
+                      opt = OPT_START,
                       metrics = ["accuracy"],
                       weights = WEIGHTS,
                       conv_base = CONV_BASE,
@@ -122,16 +124,16 @@ print(model_path)
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)
 
-pred = model.predict_generator(valid_generator, steps=int(len(valid_generator.labels)))
-pr_val = average_precision_score(valid_generator.labels, pred)
-roc_val = roc_auc_score(valid_generator.labels, pred)
-
-print('--------------------------')
-print('')
-print('Average Precision: %s' % str(round(pr_val, 4)))
-print('')
-print('--------------------------')
-print('')
-print('Model AUC: %s' % str(round(roc_val, 4)))
-print('')
-print('--------------------------')
+# pred = model.predict_generator(valid_generator, steps=int(len(valid_generator.labels)))
+# pr_val = average_precision_score(valid_generator.labels, pred)
+# roc_val = roc_auc_score(valid_generator.labels, pred)
+#
+# print('--------------------------')
+# print('')
+# print('Average Precision: %s' % str(round(pr_val, 4)))
+# print('')
+# print('--------------------------')
+# print('')
+# print('Model AUC: %s' % str(round(roc_val, 4)))
+# print('')
+# print('--------------------------')

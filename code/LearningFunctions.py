@@ -56,8 +56,8 @@ def compile_model(loss, opt, metrics, shape , weights = None, conv_base = 'Dense
         from keras_applications.resnet import ResNet152 as BASE
     elif conv_base == 'DenseNet121':
         from keras.applications.densenet import DenseNet121 as BASE
-    elif conv_base == 'NASNetLarge':
-        from keras.applications.nasnet import NASNetLarge as BASE
+    elif conv_base == 'NASNetMobile':
+        from keras.applications.nasnet import NASNetMobile as BASE
     elif conv_base == 'MobileNetV2':
         from keras.applications.mobilenet_v2 import MobileNetV2 as BASE
     elif conv_base == 'Xception':
