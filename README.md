@@ -1,3 +1,3 @@
-# MSDSCapstone
+# Automated Pathology Detection
 
-The following repository is for the our MSDS Capstone project. Details from this project will be included upon completion
+The following repository for code and results of a project to identify pathologies in chest x-rays using CNN.
